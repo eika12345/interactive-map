@@ -1,0 +1,9 @@
+{
+  "items": [
+    { "title": "Morning Light", "category": "cafe", "x": 300, "y": 560, "hours": "7-17", "rating": 4.7, "description": "Corner cafe with a sunny terrace." },
+    { "title": "Crumb & Co", "category": "bakery", "x": 520, "y": 560, "hours": "6-14", "rating": 4.5, "description": "Sourdough and pastries, baked on site." },
+    { "title": "Old Mill Roasters", "category": "roast", "x": 760, "y": 470, "hours": "8-18", "rating": 4.9, "description": "Small-batch beans, tasting flights on Fridays." },
+    { "title": "Harbor Espresso", "category": "cafe", "x": 900, "y": 640, "hours": "7-20", "rating": 4.2, "description": "Quick coffee near the water." },
+    { "title": "Loaded from JSON", "category": "roast", "x": 200, "y": 700, "hours": "9-16", "rating": 4.4, "description": "This entry only exists in cafes.json." }
+  ]
+}

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Interactive map with filterable listings</title>
+<link rel="stylesheet" href="interactive-map.css">
+<style>
+  body { margin: 0; font-family: system-ui, sans-serif; background: #e9eeea; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+  h1 { margin: 0 0 4px; } p.sub { margin: 0 0 16px; opacity: .7; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+  .tabs button { font: inherit; padding: 8px 14px; border: 1px solid #aab5ad; background: #fff; border-radius: 6px; cursor: pointer; }
+  .tabs button[aria-pressed="true"] { background: #1d2b24; color: #fff; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Interactive map with filterable listings</h1>
+  <p class="sub">One component, any dataset. Switching demos re-mounts it with a different config. On the map: pinch or use the +/- buttons to zoom, drag to pan, double-click to zoom, Ctrl + wheel on desktop. Add <code>?edit</code> to the URL to pick pin coordinates. The JSON tab uses <code>fetch</code>, so run this page through a local server (e.g. <code>npx serve</code>) for it to load.</p>
+  <div class="tabs" role="group" aria-label="Demo dataset">
+    <button data-demo="trails" aria-pressed="true">Trail log</button>
+    <button data-demo="cafes" aria-pressed="false">Cafe locator</button>
+    <button data-demo="cafesJson" aria-pressed="false">Cafes (from JSON file)</button>
+  </div>
+  <div id="map"></div>
+</div>
+
+<script src="interactive-map.js"></script>
+<script>
+  var MAP = { image: 'hikingmap.jpg', width: 1200, height: 800, alt: 'Illustrated map of the region' };
+
+  var DEMOS = {
+    trails: {
+      map: MAP,
+      theme: { accent: '#4d7a12' },
+      categories: {
+        easy:   { label: 'Easy',   color: '#7cb518' },
+        medium: { label: 'Medium', color: '#e0a800' },
+        hard:   { label: 'Hard',   color: '#d64545' }
+      },
+      fields: [
+        { key: 'km', suffix: ' km' },
+        { key: 'elevation', suffix: ' m gain' },
+        { key: 'hours', suffix: ' h' }
+      ],
+      stats: [
+        { label: 'Hikes', type: 'count' },
+        { label: 'Distance', type: 'sum', field: 'km', suffix: ' km' },
+        { label: 'Time walked', type: 'sum', field: 'hours', suffix: ' h' },
+        { label: 'Longest', type: 'max', field: 'km', suffix: ' km' }
+      ],
+      items: [
+        { title: 'Ridge Loop', category: 'easy', x: 220, y: 300, km: 6, elevation: 210, hours: 2, description: 'Gentle climb with a wide view over the valley.' },
+        { title: 'Twin Peaks', category: 'hard', x: 340, y: 270, km: 11, elevation: 880, hours: 5.5, description: 'Steep scramble to the top. Start early.' },
+        { title: 'Lake Shore Path', category: 'easy', x: 860, y: 360, km: 4.5, elevation: 40, hours: 1.2, description: 'Flat walk around the lake.' },
+        { title: 'Pine Hollow', category: 'medium', x: 560, y: 310, km: 8, elevation: 430, hours: 3, description: 'Shaded forest trail.' },
+        { title: 'Pine Hollow (summit spur)', category: 'hard', x: 560, y: 310, km: 3, elevation: 300, hours: 1.5, description: 'Same trailhead, much steeper. Shares a pin with the entry above.' },
+        { title: 'Dune Walk', category: 'medium', x: 1000, y: 590, km: 9.5, elevation: 120, hours: 3.4, description: 'Long and sandy but flat.' }
+      ]
+    },
+    cafes: {
+      map: MAP,
+      theme: { accent: '#a0522d', panel: '#f6efe8', line: '#e0d2c4' },
+      categories: {
+        cafe:   { label: 'Cafe',   color: '#a0522d' },
+        bakery: { label: 'Bakery', color: '#d89b2b' },
+        roast:  { label: 'Roaster', color: '#3a6ea5' }
+      },
+      fields: [{ key: 'hours' }, { key: 'rating', suffix: ' / 5' }],
+      stats: [
+        { label: 'Locations', type: 'count' },
+        { label: 'Top rating', type: 'max', field: 'rating', suffix: ' / 5' }
+      ],
+      labels: { filters: 'Filter by type', show: 'Find on map', read: 'See details', places: 'locations' },
+      items: [
+        { title: 'Morning Light', category: 'cafe', x: 300, y: 560, hours: '7-17', rating: 4.7, description: 'Corner cafe with a sunny terrace.' },
+        { title: 'Crumb & Co', category: 'bakery', x: 520, y: 560, hours: '6-14', rating: 4.5, description: 'Sourdough and pastries, baked on site.' },
+        { title: 'Old Mill Roasters', category: 'roast', x: 760, y: 470, hours: '8-18', rating: 4.9, description: 'Small-batch beans, tasting flights on Fridays.' },
+        { title: 'Harbor Espresso', category: 'cafe', x: 900, y: 640, hours: '7-20', rating: 4.2, description: 'Quick coffee near the water.' }
+      ]
+    }
+  };
+
+  DEMOS.cafesJson = Object.assign({}, DEMOS.cafes, { items: 'cafes.json' });
+
+  var current = InteractiveMap.mount('#map', DEMOS.trails);
+  document.querySelector('.tabs').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-demo]');
+    if (!b) return;
+    current.destroy();
+    current = InteractiveMap.mount('#map', DEMOS[b.dataset.demo]);
+    document.querySelectorAll('.tabs button').forEach(function (x) { x.setAttribute('aria-pressed', x === b); });
+  });
+</script>
+</body>
+</html>
