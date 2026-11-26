@@ -19,11 +19,16 @@
 .im-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); gap: 20px; align-items: start; }
 .im-map {
   position: relative; width: 100%; background: var(--im-panel); border: 1px solid var(--im-line); border-radius: 10px;
-  overflow: hidden; overflow: clip; user-select: none; -webkit-user-select: none;
+  user-select: none; -webkit-user-select: none;   /* no overflow clip here: the popup may hang outside the map */
   touch-action: pan-y;               /* page still scrolls vertically; pinch + horizontal drag are ours */
 }
 .im-map.im-zoomed { touch-action: none; cursor: grab; }
 .im-map.im-zoomed:active { cursor: grabbing; }
+/* clips only the zoomable image + pins, so the popup (a sibling) can extend past the map's edge */
+.im-clip { position: absolute; inset: 0; overflow: hidden; overflow: clip; border-radius: inherit; }
+/* registered so --k can animate in step with the stage; pins stay the right size mid-zoom (older browsers just snap) */
+@property --k { syntax: '<number>'; inherits: true; initial-value: 1; }
+.im-stage.im-anim { transition: transform .3s ease, --k .3s ease; }
 .im-stage { position: absolute; inset: 0; transform-origin: 0 0; --k: 1; }
 .im-zoom { position: absolute; top: 8px; right: 8px; z-index: 4; display: flex; flex-direction: column; gap: 4px; }
 .im-zoom button {
@@ -71,3 +76,6 @@
 .im-flash { animation: im-flash 1s ease-out 1; }
 @media (max-width: 800px) { .im-grid { grid-template-columns: 1fr; } .im-list { max-height: none; } }
 @media (prefers-reduced-motion: reduce) { .im-flash { animation: none; outline: 2px solid var(--im-accent); } }
+
+.im-sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.im-map:focus-visible { outline: 3px solid var(--im-accent); outline-offset: 2px; }

@@ -1,0 +1,97 @@
+/* Current map page css, can be replaced */
+
+@font-face {
+  font-family: NeueMontreal-Medium;
+  src: url(NeueMontreal-Medium.otf);
+  font-display: swap;
+}
+
+:root {
+  --page-bg: #e9e7e7;
+  --card-bg: #3a3535;
+  --head-text: #3a3535;
+  --text: #D1CCCC;
+  --radius: 14px;
+  --card-border: 1px solid rgba(255, 255, 255, 0.1);
+  --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+body {
+  font-family: NeueMontreal-Medium, system-ui, sans-serif;
+  background: var(--page-bg);
+  color: var(--head-text);
+  margin: 0;
+  padding: 80px 20px;
+  overflow-x: hidden;
+}
+
+.wrap { max-width: 1100px; margin: 0 auto; padding: 0; display: flex; flex-direction: column; align-items: center; }
+#logo { display: block; max-width: 150px; margin: 0 auto 2rem auto; }
+.wrap h1 { font-size: 2.5rem; font-weight: 600; text-align: center; margin: 0 0 1rem; color: var(--head-text); letter-spacing: -0.5px; }
+.wrap p.sub { max-width: 700px; margin: 0 0 2rem; text-align: center; line-height: 1.6; opacity: .75; color: var(--head-text); }
+.wrap p.sub code { font-family: inherit; background: rgba(58, 53, 53, .12); padding: 0 .3em; border-radius: 6px; }
+
+.tabs { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 2rem; }
+.tabs button {
+  font-family: NeueMontreal-Medium, system-ui, sans-serif; font-size: 1rem; padding: 0.6rem 1rem;
+  border-radius: 12px; border: 1px solid rgba(0, 0, 0, 0.2);
+  background-color: var(--card-bg); color: var(--text); cursor: pointer; transition: all 0.3s ease;
+}
+.tabs button:hover, .tabs button:focus-visible { border-color: var(--text); box-shadow: 0 4px 8px rgba(209, 204, 204, 0.25); outline: none; }
+.tabs button[aria-pressed="true"] { background: var(--text); color: var(--card-bg); border-color: var(--text); }
+
+#map { width: 100%; }
+
+.im {
+  --im-accent: #D1CCCC;
+  --im-bg: #3a3535;
+  --im-ink: #D1CCCC;
+  --im-panel: #2f2b2b;
+  --im-line: rgba(255, 255, 255, 0.12);
+  --im-font: NeueMontreal-Medium, system-ui, sans-serif;
+  background: transparent;
+  padding: 0;
+}
+
+.im-stats, .im-bar {
+  background: var(--card-bg); border: var(--card-border); border-radius: var(--radius);
+  box-shadow: var(--card-shadow); padding: 1.4rem 2rem; margin-bottom: 1.5rem;
+}
+.im-stats { gap: 12px 40px; }
+.im-stat span { opacity: .85; }
+.im-bar { padding: 1rem 2rem; }
+
+.im-map { background: var(--im-panel); border: var(--card-border); border-radius: var(--radius); box-shadow: var(--card-shadow); }
+.im-img { border-radius: calc(var(--radius) - 1px); }
+.im-zoom button { background: var(--card-bg); color: var(--text); border-color: rgba(255, 255, 255, 0.15); transition: all .3s ease; }
+.im-zoom button:hover, .im-zoom button:focus-visible { outline: none; border-color: var(--text); }
+.im-pin { border-color: var(--text); }
+.im-pin:hover, .im-pin:focus-visible { outline-color: var(--text); }
+
+.im-pop { background: var(--card-bg); border: var(--card-border); border-radius: var(--radius); box-shadow: 0 8px 20px rgba(0, 0, 0, .45); }
+
+.im-grid { gap: 1.5rem; }
+.im-list { gap: 1.5rem; padding: 2px 4px 8px 2px; }
+.im-card {
+  background: var(--card-bg); border: var(--card-border); border-left: 4px solid var(--c);
+  border-radius: var(--radius); box-shadow: var(--card-shadow);
+  transition: transform .3s ease, border-color .3s ease, box-shadow .3s ease;
+}
+.im-card:hover { transform: translateY(-4px); border-color: var(--text); border-left-color: var(--c); box-shadow: 0 8px 20px rgba(209, 204, 204, .18); }
+.im-body { padding: 1.4rem 1.6rem; gap: 8px; }
+.im-card h3 { font-size: 1.35rem; font-weight: 600; color: var(--text); }
+.im-card p { line-height: 1.6; }
+.im-meta { opacity: .85; }
+.im-btn { border-radius: 12px; border-color: var(--text); transition: all .3s ease; }
+.im-btn:hover, .im-btn:focus-visible { background: var(--text); color: var(--card-bg); }
+
+.im-empty { color: var(--head-text); }
+
+@media (max-width: 768px) {
+  body { padding: 50px 15px; }
+  .wrap h1 { font-size: 2rem; }
+  .im-stats, .im-bar { padding: 1.2rem 1.5rem; }
+  .im-body { padding: 1.2rem 1.4rem; }
+}
+
+

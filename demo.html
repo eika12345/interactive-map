@@ -4,19 +4,16 @@
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Interactive map with filterable listings</title>
 <link rel="stylesheet" href="interactive-map.css">
-<style>
-  body { margin: 0; font-family: system-ui, sans-serif; background: #e9eeea; }
-  .wrap { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
-  h1 { margin: 0 0 4px; } p.sub { margin: 0 0 16px; opacity: .7; }
-  .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
-  .tabs button { font: inherit; padding: 8px 14px; border: 1px solid #aab5ad; background: #fff; border-radius: 6px; cursor: pointer; }
-  .tabs button[aria-pressed="true"] { background: #1d2b24; color: #fff; }
-</style>
+<link rel="stylesheet" href="interactive-map-events.css">
 </head>
 <body>
 <div class="wrap">
-  <h1>Interactive map with filterable listings</h1>
-  <p class="sub">One component, any dataset. Switching demos re-mounts it with a different config. On the map: pinch or use the +/- buttons to zoom, drag to pan, double-click to zoom, Ctrl + wheel on desktop. Add <code>?edit</code> to the URL to pick pin coordinates. The JSON tab uses <code>fetch</code>, so run this page through a local server (e.g. <code>npx serve</code>) for it to load.</p>
+  <img src="logo black.png" alt="My Logo" id="logo">
+  <h1>An interactive map with filterable listings.</h1>
+  <p class="sub">One map, any kind of data. Use the tabs to switch between different data.</p>
+  <p class="sub">Your filters and the open pin are saved in the page address, so you can copy the link to share exactly what you're seeing.</p>
+
+
   <div class="tabs" role="group" aria-label="Demo dataset">
     <button data-demo="trails" aria-pressed="true">Trail log</button>
     <button data-demo="cafes" aria-pressed="false">Cafe locator</button>
@@ -27,12 +24,12 @@
 
 <script src="interactive-map.js"></script>
 <script>
-  var MAP = { image: 'hikingmap.jpg', width: 1200, height: 800, alt: 'Illustrated map of the region' };
+
+  var MAP = { image: 'mapcity.png', width: 1238, height: 701, alt: 'Aerial view of the city' };
 
   var DEMOS = {
     trails: {
       map: MAP,
-      theme: { accent: '#4d7a12' },
       categories: {
         easy:   { label: 'Easy',   color: '#7cb518' },
         medium: { label: 'Medium', color: '#e0a800' },
@@ -60,11 +57,10 @@
     },
     cafes: {
       map: MAP,
-      theme: { accent: '#a0522d', panel: '#f6efe8', line: '#e0d2c4' },
       categories: {
-        cafe:   { label: 'Cafe',   color: '#a0522d' },
+        cafe:   { label: 'Cafe',   color: '#c97a4a' },
         bakery: { label: 'Bakery', color: '#d89b2b' },
-        roast:  { label: 'Roaster', color: '#3a6ea5' }
+        roast:  { label: 'Roaster', color: '#5b93c9' }
       },
       fields: [{ key: 'hours' }, { key: 'rating', suffix: ' / 5' }],
       stats: [
@@ -83,11 +79,24 @@
 
   DEMOS.cafesJson = Object.assign({}, DEMOS.cafes, { items: 'cafes.json' });
 
-  var current = InteractiveMap.mount('#map', DEMOS.trails);
+  Object.keys(DEMOS).forEach(function (k) { DEMOS[k].urlState = true; });
+
+  /* the active tab is kept in the hash too (#demo=cafes), next to the map's own params */
+  function setTab(name) {
+    var p = new URLSearchParams(location.hash.slice(1));
+    ['im.cats', 'im.item'].forEach(function (k) { p.delete(k); });   // filters/pin belong to the previous dataset
+    p.set('demo', name);
+    history.replaceState(null, '', location.pathname + location.search + '#' + p.toString().replace(/%2C/gi, ','));
+  }
+  var start = new URLSearchParams(location.hash.slice(1)).get('demo');
+  if (!DEMOS[start]) { start = 'trails'; }
+  document.querySelectorAll('.tabs button').forEach(function (x) { x.setAttribute('aria-pressed', x.dataset.demo === start); });
+  var current = InteractiveMap.mount('#map', DEMOS[start]);
   document.querySelector('.tabs').addEventListener('click', function (e) {
     var b = e.target.closest('[data-demo]');
     if (!b) return;
     current.destroy();
+    setTab(b.dataset.demo);
     current = InteractiveMap.mount('#map', DEMOS[b.dataset.demo]);
     document.querySelectorAll('.tabs button').forEach(function (x) { x.setAttribute('aria-pressed', x === b); });
   });

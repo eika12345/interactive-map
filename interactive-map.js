@@ -16,7 +16,7 @@
     this.cfg = cfg;
     this.uid = ++uid;
     this.L = Object.assign({ filters: 'Filter by category', show: 'Show on map', read: 'Read more',
-      empty: 'Nothing matches the filters.', loading: 'Loading...', error: 'Could not load the places.', close: 'Close', places: 'places', mapLabel: 'Interactive map', zoomIn: 'Zoom in', zoomOut: 'Zoom out', zoomReset: 'Reset zoom' }, cfg.labels);
+      empty: 'Nothing matches the filters.', loading: 'Loading...', error: 'Could not load the places.', close: 'Close', places: 'places', mapLabel: 'Interactive map', zoomIn: 'Zoom in', zoomOut: 'Zoom out', zoomReset: 'Reset zoom', mapHelp: 'Use the arrow keys to pan and the plus and minus keys to zoom.' }, cfg.labels);
     this.cats = cfg.categories;
     this.items = [];
     this.msg = null;
@@ -24,6 +24,14 @@
     for (var k in this.cats) this.active[k] = true;
     this.edit = cfg.edit != null ? cfg.edit : /[?&]edit(&|=|$)/.test(location.search);
     this.off = [];
+    /* optional shareable URL state: urlState: true, or { key: 'map' } to namespace several maps on one page */
+    this.urlOn = !!cfg.urlState;
+    this.ukey = (cfg.urlState && cfg.urlState.key) || 'im';
+    this.urlLive = false;
+    if (this.urlOn) {
+      this.pending = this.readUrl();
+      this.active = this.activeFrom(this.pending.cats);
+    }
     this.build();
     this.load(cfg.items);
   }
@@ -67,9 +75,14 @@
   P.setItems = function (arr) {
     var uidv = this.uid;
     this.items = arr.map(function (it, i) {
-      return Object.assign({}, it, { _id: 'im' + uidv + '-' + i });
+      return Object.assign({}, it, { _id: 'im' + uidv + '-' + i, _i: i });
     });
     this.render();
+    if (this.urlOn) {
+      if (this.pending) { this.openItem(this.pending.item); this.pending = null; }
+      this.urlLive = true;
+      this.writeUrl();
+    }
   };
 
   P.vis = function () { var a = this.active; return this.items.filter(function (i) { return a[i.category]; }); };
@@ -90,9 +103,11 @@
       '<div class="im-bar"><div class="im-filters" role="group" aria-label="' + esc(this.L.filters) + '"></div>' +
       '<span class="im-count" aria-live="polite"></span></div>' +
       '<div class="im-grid">' +
-        '<div class="im-map" role="region" aria-label="' + esc(this.L.mapLabel) + '" style="aspect-ratio:' + m.width + '/' + m.height + '">' +
-          '<div class="im-stage"><img class="im-img" alt="' + esc(m.alt || '') + '" src="' + esc(m.image) + '" draggable="false">' +
-          '<div class="im-pins"></div></div>' +
+        '<div class="im-map" role="region" aria-label="' + esc(this.L.mapLabel) + '"' +
+          (this.cfg.zoom === false ? '' : ' tabindex="0" aria-describedby="im-help-' + this.uid + '"') + ' style="aspect-ratio:' + m.width + '/' + m.height + '">' +
+          (this.cfg.zoom === false ? '' : '<span class="im-sr" id="im-help-' + this.uid + '">' + esc(this.L.mapHelp) + '</span>') +
+          '<div class="im-clip"><div class="im-stage"><img class="im-img" alt="' + esc(m.alt || '') + '" src="' + esc(m.image) + '" draggable="false">' +
+          '<div class="im-pins"></div></div></div>' +
           '<div class="im-pop" role="dialog" aria-modal="false" hidden></div>' +
           (this.cfg.zoom === false ? '' :
             '<div class="im-zoom" role="group">' +
@@ -107,7 +122,7 @@
     this.mapEl = this.q('.im-map'); this.stage = this.q('.im-stage'); this.pins = this.q('.im-pins'); this.pop = this.q('.im-pop');
 
     this.q('.im-filters').innerHTML = Object.keys(this.cats).map(function (k) {
-      return '<label class="im-filter"><input type="checkbox" data-cat="' + esc(k) + '" checked>' +
+      return '<label class="im-filter"><input type="checkbox" data-cat="' + esc(k) + '"' + (self.active[k] ? ' checked' : '') + '>' +
         '<span class="im-sw" style="--c:' + self.cats[k].color + '"></span>' + esc(self.cats[k].label) + '</label>';
     }).join('');
 
@@ -123,6 +138,7 @@
     });
     this.on(document, 'keydown', function (e) { if (e.key === 'Escape' && !self.pop.hidden) self.closePop(true); });
     this.on(window, 'resize', function () { self.resize(); });
+    if (this.urlOn) this.on(window, 'hashchange', function () { if (self.urlLive) self.applyState(self.readUrl()); });
     this.initZoom();
     this.render();
   };
@@ -131,6 +147,7 @@
     this.closePop(false);
     this.renderStats(); this.renderPins(); this.renderList();
     this.q('.im-count').textContent = this.vis().length + ' ' + this.L.places;
+    this.writeUrl();
   };
 
   P.renderStats = function () {
@@ -191,7 +208,7 @@
     if (this.edit && t.closest('.im-map') && !t.closest('.im-pop') && !t.closest('.im-zoom')) this.pick(e);
   };
 
-  P.openPop = function (gi) {
+  P.openPop = function (gi, quiet) {
     var self = this, grp = this.groups[gi];
     if (!grp) return;
     this.cur = gi;
@@ -204,7 +221,8 @@
     this.pop.hidden = false;
     this.placePop();
     if (this.cfg.onSelect) this.cfg.onSelect(grp);
-    this.pop.querySelector('.im-x').focus({ preventScroll: true });
+    this.writeUrl();
+    if (!quiet) this.pop.querySelector('.im-x').focus({ preventScroll: true });
   };
 
   P.placePop = function () {
@@ -225,6 +243,7 @@
     this.pop.hidden = true;
     var pin = this.pinEls && this.pinEls[this.cur];
     this.cur = null;
+    this.writeUrl();
     if (refocus && pin) pin.focus();
   };
 
@@ -329,13 +348,20 @@
       if (!(e.ctrlKey || e.metaKey)) return;
       e.preventDefault();
       var r = m.getBoundingClientRect();
-      self.zoomAt(e.clientX - r.left, e.clientY - r.top, self.k * Math.exp(-e.deltaY * 0.01), 0, 0);
+      /* one wheel notch is about the same step as the + button; small trackpad-pinch deltas stay small */
+      var dy = clamp(e.deltaMode === 1 ? e.deltaY * 33 : e.deltaY, -60, 60);
+      self.wx = e.clientX - r.left; self.wy = e.clientY - r.top;
+      self.wt = clamp((self.wt != null ? self.wt : self.k) * Math.exp(-dy * 0.006), 1, self.zmax);
+      self.wheelEase();
     }, { passive: false });
     this.on(m, 'dblclick', function (e) {
       if (e.target.closest('.im-pin, .im-pop, .im-zoom')) return;
+      self.wt = null;
       var r = m.getBoundingClientRect();
-      self.zoomAt(e.clientX - r.left, e.clientY - r.top, self.k >= self.zmax * 0.99 ? 1 : self.k * 2, 0, 0);
+      self.zoomAt(e.clientX - r.left, e.clientY - r.top, self.k >= self.zmax * 0.99 ? 1 : self.k * 2, 0, 0, true);
     });
+    /* arrow keys / + / - / 0 when the map itself has focus (pins and buttons keep their own keys) */
+    this.on(m, 'keydown', function (e) { if (e.target === m) self.key(e); });
     /* keyboard focus on an off-screen pin pans it into view */
     this.on(m, 'focusin', function (e) {
       var pin = e.target.closest && e.target.closest('.im-pin');
@@ -345,21 +371,49 @@
   };
 
   /* zoom to scale nk around viewport point (px, py), then shift by (dx, dy) */
-  P.zoomAt = function (px, py, nk, dx, dy) {
+  P.zoomAt = function (px, py, nk, dx, dy, animate) {
     nk = clamp(nk, 1, this.zmax);
     this.tx = InteractiveMap.anchor(this.tx, px, this.k, nk) + dx;
     this.ty = InteractiveMap.anchor(this.ty, py, this.k, nk) + dy;
     this.k = nk;
-    this.apply();
+    this.apply(animate);
+  };
+
+  /* returns true if the key was handled. At 1x arrows are left alone so the page still scrolls. */
+  P.key = function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return false;
+    var k = e.key, s = e.shiftKey ? 0.5 : 0.2, dx = 0, dy = 0;
+    if (k === 'ArrowLeft') dx = -1; else if (k === 'ArrowRight') dx = 1;
+    else if (k === 'ArrowUp') dy = -1; else if (k === 'ArrowDown') dy = 1;
+    if (dx || dy) {
+      if (this.k <= 1) return false;
+      this.tx -= dx * s * this.vw; this.ty -= dy * s * this.vh;   // view moves right = content moves left
+      this.apply(true);
+    } else if (k === '+' || k === '=') this.zoomBy('in');
+    else if (k === '-' || k === '_') this.zoomBy('out');
+    else if (k === '0') this.zoomBy('reset');
+    else return false;
+    e.preventDefault();
+    return true;
   };
 
   P.zoomBy = function (dir) {
+    this.wt = null;   // cancel any wheel zoom still easing
     var f = dir === 'in' ? 1.5 : dir === 'out' ? 1 / 1.5 : 0;
-    this.zoomAt(this.vw / 2, this.vh / 2, f ? this.k * f : 1, 0, 0);
+    this.zoomAt(this.vw / 2, this.vh / 2, f ? this.k * f : 1, 0, 0, true);
   };
 
-  P.apply = function () {
+  /* animate = true for one-off moves (buttons, keys, double-click). Drags, pinches and wheel stay instant. */
+  var DUR = 300;
+  P.apply = function (animate) {
     var F = InteractiveMap.fit;
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    clearTimeout(this.animT);
+    if (animate && !reduce) {
+      this.stage.classList.add('im-anim');
+      var st = this; this.animT = setTimeout(function () { st.stage.classList.remove('im-anim'); }, DUR + 50);
+      this.track();
+    } else this.stage.classList.remove('im-anim');
     this.tx = F(this.tx, this.k, this.vw);
     this.ty = F(this.ty, this.k, this.vh);
     this.stage.style.transform = 'translate(' + this.tx + 'px,' + this.ty + 'px) scale(' + this.k + ')';
@@ -371,6 +425,36 @@
       b.setAttribute('aria-disabled', d === 'in' ? self.k >= self.zmax : self.k <= 1);
     });
     this.placePop();
+  };
+
+  /* Ctrl + wheel: ease the scale toward the target a little each frame, keeping the point under the cursor fixed */
+  P.wheelEase = function () {
+    var self = this;
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce || !window.requestAnimationFrame) {
+      this.zoomAt(this.wx, this.wy, this.wt, 0, 0); this.wt = null; return;
+    }
+    if (this.wraf) return;
+    (function step() {
+      self.wraf = 0;
+      if (self.dead || self.wt == null) return;
+      var ratio = self.wt / self.k;
+      if (Math.abs(ratio - 1) < 0.002) { self.zoomAt(self.wx, self.wy, self.wt, 0, 0); self.wt = null; return; }
+      self.zoomAt(self.wx, self.wy, self.k * Math.pow(ratio, 0.22), 0, 0);
+      self.wraf = requestAnimationFrame(step);
+    })();
+  };
+
+  /* while the stage animates, keep an open popup glued to its pin */
+  P.track = function () {
+    var self = this, end = Date.now() + DUR + 50;
+    if (!window.requestAnimationFrame) return;
+    cancelAnimationFrame(this.raf);
+    (function f() {
+      if (self.dead) return;
+      self.placePop();
+      if (Date.now() < end) self.raf = requestAnimationFrame(f);
+    })();
   };
 
   P.resize = function () {
@@ -391,8 +475,52 @@
     this.apply();
   };
 
+
+  /* ---- shareable URL state ----
+     Hash params (namespaced by key): <key>.cats=easy,hard (only when some filter is off), <key>.item=<index in items> */
+  P.readUrl = function () {
+    var p = new URLSearchParams(location.hash.slice(1)), c = p.get(this.ukey + '.cats'), i = p.get(this.ukey + '.item');
+    return { cats: c == null ? null : c.split(',').filter(Boolean), item: i == null || i === '' || isNaN(+i) ? null : +i };
+  };
+  P.activeFrom = function (list) {
+    var a = {}, k, known = [];
+    if (list) known = list.filter(function (x) { return x in this.cats; }, this);
+    var all = !list || (list.length && !known.length);   // no param, or only unknown keys: show everything
+    for (k in this.cats) a[k] = all || known.indexOf(k) >= 0;
+    return a;
+  };
+  P.writeUrl = function () {
+    if (!this.urlOn || !this.urlLive) return;
+    var self = this, p = new URLSearchParams(location.hash.slice(1)), all = Object.keys(this.cats);
+    var on = all.filter(function (k) { return self.active[k]; });
+    if (on.length === all.length) p.delete(this.ukey + '.cats'); else p.set(this.ukey + '.cats', on.join(','));
+    var g = this.cur != null && this.groups && this.groups[this.cur];
+    if (g) p.set(this.ukey + '.item', g[0]._i); else p.delete(this.ukey + '.item');
+    var h = p.toString().replace(/%2C/gi, ',');
+    var url = location.pathname + location.search + (h ? '#' + h : '');
+    if (url !== location.pathname + location.search + location.hash) history.replaceState(null, '', url);
+  };
+  P.openItem = function (idx) {
+    var it = idx != null && this.items[idx], gi = -1;
+    if (!it) return;
+    this.groups.forEach(function (g, i) { if (g.some(function (x) { return x._i === idx; })) gi = i; });
+    if (gi < 0) return;
+    this.reveal(gi);
+    this.openPop(gi, true);   // quiet: don't steal focus on page load
+  };
+  /* apply state from the URL (initial load handled in setItems; this is for back/forward and pasted links) */
+  P.applyState = function (s) {
+    this.active = this.activeFrom(s.cats);
+    var self = this;
+    [].forEach.call(this.el.querySelectorAll('[data-cat]'), function (c) { c.checked = !!self.active[c.getAttribute('data-cat')]; });
+    this.render();
+    this.openItem(s.item);
+  };
+
   P.destroy = function () {
     this.dead = true;
+    clearTimeout(this.animT);
+    if (window.cancelAnimationFrame) { cancelAnimationFrame(this.raf); cancelAnimationFrame(this.wraf); }
     this.off.forEach(function (f) { f(); });
     this.off = [];
     this.el.classList.remove('im');
